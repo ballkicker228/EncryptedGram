@@ -1,0 +1,3 @@
+fzf
+libsqlite3-dev
+python3-dev
