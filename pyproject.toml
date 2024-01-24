@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Program for chatting private with telegram"
 authors = ["ballkicker228 <ballkicker@tutanota.com>"]
 
+[tool.poetry.scripts]
+main = "telegram_encryption.main:main"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 pysqlite3 = "^0.5.2"
@@ -11,7 +14,6 @@ crypto = "^1.4.1"
 pycryptodome = "^3.19.0"
 telethon = "^1.32.1"
 pyfzf = "^0.3.1"
-pynput = "^1.7.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
