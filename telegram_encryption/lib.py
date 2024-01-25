@@ -243,16 +243,91 @@ class Telegram:
         return messages
 
 class FriendSelectionWindow:
+    class CreateFriendWindow:
+        def __init__(self, master):
+            self.master = master
+            self.window = tk.Toplevel(self.master)
+            self.window.title("Добавить друга")
+            self.window.configure(bg="#333")
+            self.create_widgets()
+        
+        def create_widgets(self):
+            self.info_label = tk.Label(self.window, text="Чтобы добавить друга вам нужно ввести его user id, номер телефона или ник")
+            self.data_entry_label = tk.Label(self.window, text="Введите данные друга:")
+            self.info_label.pack(pady=10)
+            self.data_entry_label.pack(pady=10)
+            self.data_entry = tk.Entry(self.window)
+            self.data_entry.pack(pady=10)
+
+            self.name_label = tk.Label(self.window, text="Как вы назовете своего друга:")
+            self.name_entry = tk.Entry(self.window)
+            self.name_label.pack(pady=10)
+            self.name_entry.pack(pady=10)
+
+            self.enter_button = tk.Button(self.window, text="Enter", command=self.enter_friend)
+            self.enter_button.pack(pady=10)
+
+        def enter_friend(self):
+            self.friend_name = self.name_entry.get()
+            self.friend_data = self.data_entry.get()
+            self.window.destroy()
+        
+        def get_friend(self):
+            return self.friend_name, self.friend_data
+
     def __init__(self, root, accountdb):
         self.root = root
+        self.root.title("Выберите друга")
+        self.root.configure(bg="#333")
         self.accountdb = accountdb
         self.selected_friend = None
         self.friends = self.accountdb.get_all_friends_names()
-        for friend in self.friends:
-            print(friend)
+        self.create_widgets()
 
-        def create_widgets(self):
-            pass
+    def create_widgets(self):
+        # Создание списка аккаунтов
+        self.enter_friend_label = tk.Label(self.root, text="Выберите друга")
+        self.enter_friend_label.pack(pady=10)
+        self.friends_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE, bg="#444", fg="white")
+        for friend in self.friends:
+            self.friends_listbox.insert(tk.END, friend)
+
+        self.friends_listbox.pack(padx=10, pady=10)
+
+        # Кнопка выбора аккаунта
+        select_button = tk.Button(self.root, text="Выбрать", command=self.select_friend, bg="#666", fg="white")
+        add_button = tk.Button(self.root, text="Добавить", command=self.add_friend, bg="#666", fg="white")
+        del_button = tk.Button(self.root, text="Удалить", command=self.del_friend, bg="#666", fg="white")
+        quit_button = tk.Button(self.root, text="Выйти", command=self.close, bg="#666", fg="white")
+    
+        select_button.pack(pady=10)
+        add_button.pack(pady=10)
+        del_button.pack(pady=10)
+        quit_button.pack(pady=10)
+
+    def del_friend(self):
+        selected_index = self.friends_listbox.curselection()
+        if selected_index:
+            self.selected_friend = self.friends_listbox.get(selected_index)
+            self.accountdb.del_friend_by_name(self.selected_account)
+            self.friends_listbox.delete(selected_index)
+
+    def close(self):
+        self.root.destroy()
+
+    def add_friend(self):
+        self.create_window = self.CreateFriendWindow(self.root)
+        
+        self.root.wait_window(self.create_window.window)
+        friend_name, friend_data = self.create_window.get_friend()
+        self.friends_listbox.insert(tk.END, friend_name)
+        self.accountdb.add_friend(friend_data, friend_name)
+
+    def select_friend(self):
+        selected_index = self.friends_listbox.curselection()
+        if selected_index:
+            self.selected_friend = self.friends_listbox.get(selected_index)
+            self.root.destroy()
 
 class AccountSelectionWindow:
     def __init__(self, root, masterdb):
@@ -463,3 +538,56 @@ class ChatApp:
 
         # Блокировка поля для отображения, чтобы пользователь не мог редактировать текст
         self.message_display.config(state='disabled')
+    
+
+def select_account(masterdb):
+    selection_window = tk.Tk()
+    window = AccountSelectionWindow(selection_window, masterdb)
+    selection_window.mainloop()
+    account = window.accountdb
+    return account
+
+def start_gui():
+    root = tk.Tk()
+    app = ChatApp(root)
+    root.mainloop()
+
+def select_friend(database):#, telegram):
+    selection_window = tk.Tk()
+    friend_window = FriendSelectionWindow(selection_window, database)
+    selection_window.mainloop()
+    return friend_window.selected_friend
+    # friends = database.get_all_friends_names()
+    # friends.append("Добавить друга")
+    # friends.append("Удалить друга")
+    # friend_name = fzf.prompt(friends)[0]
+    # friend_user_id = None
+    # if friend_name == "Добавить друга":
+    #     dialogs = telegram.get_dialogs()
+    #     usernames = []
+    #     for dialog in dialogs:
+    #         usernames.append(dialog[0])
+    #     usernames.append("Добавить другим способом")
+    #     selectedfriend = fzf.prompt(usernames)[0]
+    #     if selectedfriend == "Добавить другим способом":
+    #         print('Для добавления друга нужен его User id либо номер телефона либо его ник в формате @my_dear_friend')
+    #         friend_user_id = input("Введите эти данные: ")
+    #         telegram_user_obj = telegram.get_entity(friend_user_id)
+    #         friendnamelocal = input("Как вы назовете своего друга? ")
+    #         friend_user_id = telegram_user_obj.id
+    #         database.add_friend(telegram_user_obj.id, friendnamelocal)
+    #         return friend_user_id, friendnamelocal
+    #     else:
+    #         telegram_user_obj = telegram.get_entity(dialogs[usernames.index(selectedfriend)][1])
+    #         friendnamelocal = input("Как вы назовете своего друга? ")
+    #         friend_user_id = telegram_user_obj.id
+    #         database.add_friend(telegram_user_obj.id, friendnamelocal)
+    #         return friend_user_id
+    # elif friend_name == "Удалить друга":
+    #     friends = database.get_all_friends_names(account_id)
+    #     friend_to_delete = fzf.prompt(friends)[0]
+    #     database.del_friend_by_name(friend_to_delete)
+    #     select_friend(fzf, database, telegram)
+    # else:
+    #     friend_user_id = database.get_friend_user_id_by_name(friend_name)
+    #     return friend_user_id, friend_name
