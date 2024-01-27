@@ -1,4 +1,4 @@
-from telegram_encryption.lib import Telegram, Crypt, MasterDatabase, Account, ChatApp, AccountSelectionWindow, FriendSelectionWindow, select_account, start_gui, select_friend
+from telegram_encryption.lib import Telegram, Crypt, MasterDatabase, Account, select_account, select_friend, start_main
 
 # def start_interface(stdscr, database, telegram, friend_user_id, friend_name):
 #     messages = telegram.get_all_dialog_messages(friend_user_id)
@@ -51,11 +51,14 @@ from telegram_encryption.lib import Telegram, Crypt, MasterDatabase, Account, Ch
 def main():
     masterdb = MasterDatabase()
     database = select_account(masterdb)
-    friend = select_friend(database)
     crypt = Crypt(database)
-    # api_id, api_hash, nameapi, my_id = database.get_api_data()
+    api_id, api_hash, name = database.get_api_data()
+    telegram = Telegram(api_id, api_hash, name, crypt)
+    friend = select_friend(database, telegram)
+    chat = start_main(database, friend, crypt, telegram)
+    
 
-    # telegram = Telegram(api_id, api_hash, nameapi, crypt)
+    
     # friend_user_id, friend_name = select_friend(fzf, database, telegram)
     
              

@@ -1,11 +1,11 @@
 import os
 import sqlite3
-from sqlite3 import Error
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP           
 from telethon.sync import TelegramClient, events
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+import threading
 
 class MasterDatabase:
     def __init__(self): 
@@ -88,13 +88,12 @@ class Account:
         self.con.commit()
     
     def get_api_data(self):
-        self.cur.execute(f"SELECT API_ID,API_HASH,NAME,MY_ID FROM Account WHERE ID=1;")
+        self.cur.execute(f"SELECT API_ID,API_HASH,NAME FROM Account WHERE ID=1;")
         api = self.cur.fetchone()
         api_id = api[0]
         api_hash = api[1]
         name = api[2]
-        my_id = api[3]
-        return api_id, api_hash, name, my_id
+        return api_id, api_hash, name
 
     def add_friend(self, friend_id, friend_name):
         self.cur.execute("""INSERT INTO Friends(FRIEND_ID, FRIEND_NAME, FRIEND_PUBLIC_KEY) VALUES (?,?,?);""", (friend_id, friend_name, "None"))
@@ -204,8 +203,8 @@ class Telegram:
         self.client = TelegramClient(name, api_id, api_hash)
         self.client.start() 
 
-    def get_entity(self, friend_user_id):
-        user_obj = self.client.get_entity(int(friend_user_id))
+    def get_entity(self, friend_data):
+        user_obj = self.client.get_entity(friend_data)
         return user_obj
 
     def get_dialogs(self):
@@ -216,19 +215,19 @@ class Telegram:
                 userdialogs.append([dialog.name, dialog.entity.id])
         return userdialogs
 
-    def send_message(self, user_id, message):
+    def send_message(self, entity, message):
         key = self.crypt.db.get_friend_pubkey(user_id)
         self.crypt.friend_pubkey = RSA.import_key(key)
         encrypted_message = self.crypt.encrypt_message(message) 
         #dialog = self.client.start_chat(self.get_entity(user_id))
-        self.client.send_message(int(user_id), f"Start of msg: {encrypted_message}")
+        self.client.send_message(int(entity), f"Start of msg: {encrypted_message}")
     
-    def send_public_key(self, user_id):
+    def send_public_key(self, entity):
         publickey = self.crypt.db.get_public_key()
-        self.client.send_message(int(user_id), f"Start of public key: {publickey.decode()}")
+        self.client.send_message(int(entity), f"Start of public key: {publickey.decode()}")
     
-    def public_key_request(self, user_id):
-        self.client.send_message(int(user_id), 'Give me your public key please')
+    def public_key_request(self, entity):
+        self.client.send_message(int(entity), 'Give me your public key please')
 
     def get_me(self):
         return self.client.get_me() 
@@ -244,43 +243,73 @@ class Telegram:
 
 class FriendSelectionWindow:
     class CreateFriendWindow:
-        def __init__(self, master):
+        def __init__(self, master, telegram):
+            self.telegram = telegram
             self.master = master
             self.window = tk.Toplevel(self.master)
             self.window.title("Добавить друга")
             self.window.configure(bg="#333")
             self.create_widgets()
+            self.friend_id = None
+            self.friend_name = None
         
         def create_widgets(self):
-            self.info_label = tk.Label(self.window, text="Чтобы добавить друга вам нужно ввести его user id, номер телефона или ник")
-            self.data_entry_label = tk.Label(self.window, text="Введите данные друга:")
+            self.info_label = tk.Label(self.window, text="Для добавления друга он должен быть в списке ваших чатов")
+            self.data_label = tk.Label(self.window, text="Выберите чат из списка:")
             self.info_label.pack(pady=10)
-            self.data_entry_label.pack(pady=10)
-            self.data_entry = tk.Entry(self.window)
-            self.data_entry.pack(pady=10)
+            self.data_label.pack(pady=10)
+            self.data_listbox = tk.Listbox(self.window, selectmode=tk.SINGLE, bg="#444", fg="white")
+            self.data_listbox.pack(pady=10)
+            self.submit_button = tk.Button(self.window, text="Enter", command=self.submit_friend)
+            self.submit_button.pack(pady=10)
+            self.dialogs = self.telegram.get_dialogs()
+            for dialog in self.dialogs:
+                self.data_listbox.insert(tk.END, dialog[0])
+                telegram_user_obj = self.telegram.get_entity(int(dialog[1]))
+        
+        def submit_friend(self):
+            selected_index = self.data_listbox.curselection()
+            if selected_index:
+                self.selected_friend = self.data_listbox.get(selected_index)
+                for dialog in self.dialogs:
+                    if dialog[0] == self.selected_friend:
+                        self.friend_name = dialog[0]
+                        self.friend_id = dialog[1]
+                        self.window.destroy()
 
-            self.name_label = tk.Label(self.window, text="Как вы назовете своего друга:")
-            self.name_entry = tk.Entry(self.window)
-            self.name_label.pack(pady=10)
-            self.name_entry.pack(pady=10)
 
-            self.enter_button = tk.Button(self.window, text="Enter", command=self.enter_friend)
-            self.enter_button.pack(pady=10)
+            
 
-        def enter_friend(self):
-            self.friend_name = self.name_entry.get()
-            self.friend_data = self.data_entry.get()
-            self.window.destroy()
+        #     self.info_label = tk.Label(self.window, text="Чтобы добавить друга вам нужно ввести его user id, номер телефона или ник")
+        #     self.data_entry_label = tk.Label(self.window, text="Введите данные друга:")
+        #     self.info_label.pack(pady=10)
+        #     self.data_entry_label.pack(pady=10)
+        #     self.data_entry = tk.Entry(self.window)
+        #     self.data_entry.pack(pady=10)
+
+        #     self.name_label = tk.Label(self.window, text="Как вы назовете своего друга:")
+        #     self.name_entry = tk.Entry(self.window)
+        #     self.name_label.pack(pady=10)
+        #     self.name_entry.pack(pady=10)
+
+        #     self.enter_button = tk.Button(self.window, text="Enter", command=self.enter_friend)
+        #     self.enter_button.pack(pady=10)
+
+        # def enter_friend(self):
+        #     self.friend_name = self.name_entry.get()
+        #     self.friend_data = self.data_entry.get()
+        #     self.window.destroy()
         
         def get_friend(self):
-            return self.friend_name, self.friend_data
+            return self.friend_name, self.friend_id
 
-    def __init__(self, root, accountdb):
+    def __init__(self, root, accountdb, telegram):
         self.root = root
         self.root.title("Выберите друга")
         self.root.configure(bg="#333")
         self.accountdb = accountdb
         self.selected_friend = None
+        self.telegram = telegram
         self.friends = self.accountdb.get_all_friends_names()
         self.create_widgets()
 
@@ -316,12 +345,12 @@ class FriendSelectionWindow:
         self.root.destroy()
 
     def add_friend(self):
-        self.create_window = self.CreateFriendWindow(self.root)
+        self.create_window = self.CreateFriendWindow(self.root, self.telegram)
         
         self.root.wait_window(self.create_window.window)
-        friend_name, friend_data = self.create_window.get_friend()
+        friend_name, friend_id = self.create_window.get_friend()
         self.friends_listbox.insert(tk.END, friend_name)
-        self.accountdb.add_friend(friend_data, friend_name)
+        self.accountdb.add_friend(friend_id, friend_name)
 
     def select_friend(self):
         selected_index = self.friends_listbox.curselection()
@@ -470,19 +499,18 @@ class AccountSelectionWindow:
             self.root.destroy()
 
 class ChatApp:
-    def __init__(self, root, telegram, accountdb):
+    def __init__(self, root, telegram, accountdb, friend_name, friend_user_id):
         self.root = root
         self.root.title("EncryptedGram")
         self.root.configure(bg='#333')  # Установка темного цвета фона
         self.telegram = telegram
-        self.masterdb = masterdb
+        self.database = accountdb
+        self.friend_name = friend_name
+        self.friend_user_id = friend_user_id
 
         self.messages = []
 
         self.create_widgets()
-
-    def account_select(self):
-        pass
 
     def create_widgets(self):
         # Создание поля для отображения сообщений
@@ -495,7 +523,11 @@ class ChatApp:
 
         # Кнопка для отправки сообщения
         send_button = tk.Button(self.root, text="Send", command=self.send_message, bg='blue', fg='white', highlightthickness=0)
+        request_button = tk.Button(self.root, text="Key Request", command=self.request_key, bg='blue', fg='white', highlightthickness=0)
+        send_key_button = tk.Button(self.root, text="Send Key", command=self.send_key, bg='blue', fg='white', highlightthickness=0)
         send_button.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        request_button.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
+        send_key_button.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
 
         # Настройка параметров размещения
         self.root.grid_rowconfigure(0, weight=1)
@@ -510,13 +542,21 @@ class ChatApp:
         style.theme_use('default')  # Используйте тему по умолчанию
         style.configure("Vertical.TScrollbar", troughcolor='#333', slidercolor='#666')
 
+    def request_key(self):
+        entity = self.telegram.get_entity(self.friend_user_id)
+        self.telegram.public_key_request(entity)
+
+    def send_key(self):
+        self.telegram.send_public_key(self.friend_user_id)
+
     def send_message(self):
         # Получение текста из поля ввода
         message_text = self.message_entry.get()
 
         if message_text:
+            self.telegram.send_message(message_text)
             # Добавление нового сообщения в массив
-            self.messages.append(message_text)
+            self.messages.append(f"Me: {message_text}")
 
             # Обновление отображения сообщений
             self.display_messages()
@@ -539,7 +579,6 @@ class ChatApp:
         # Блокировка поля для отображения, чтобы пользователь не мог редактировать текст
         self.message_display.config(state='disabled')
     
-
 def select_account(masterdb):
     selection_window = tk.Tk()
     window = AccountSelectionWindow(selection_window, masterdb)
@@ -547,14 +586,9 @@ def select_account(masterdb):
     account = window.accountdb
     return account
 
-def start_gui():
-    root = tk.Tk()
-    app = ChatApp(root)
-    root.mainloop()
-
-def select_friend(database):#, telegram):
+def select_friend(database, telegram):
     selection_window = tk.Tk()
-    friend_window = FriendSelectionWindow(selection_window, database)
+    friend_window = FriendSelectionWindow(selection_window, database, telegram)
     selection_window.mainloop()
     return friend_window.selected_friend
     # friends = database.get_all_friends_names()
@@ -591,3 +625,9 @@ def select_friend(database):#, telegram):
     # else:
     #     friend_user_id = database.get_friend_user_id_by_name(friend_name)
     #     return friend_user_id, friend_name
+
+def start_main(database, friend_name, crypt, telegram):
+    root = tk.Tk()
+    friend_user_id = database.get_friend_user_id_by_name(friend_name)
+    app = ChatApp(root, telegram, database, friend_name, friend_user_id)
+    root.mainloop()
