@@ -3,9 +3,13 @@ import sqlite3
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP           
 from telethon.sync import TelegramClient, events
+from telethon.errors import PasswordHashInvalidError
+from telethon.tl import types
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 import threading
+from timeit import default_timer
+
 
 class MasterDatabase:
     def __init__(self): 
@@ -114,10 +118,11 @@ class Account:
     
     def del_friend_by_name(self, friend_name):
         self.cur.execute(f"DELETE FROM Friends WHERE FRIEND_NAME='{friend_name}'")
+        self.con.commit()
 
     def get_public_key(self):
         self.cur.execute(f"SELECT PUBLIC_KEY FROM Account WHERE ID=1")
-        return self.cur.fetchone()[0]
+        return self.cur.fetchone()[0].decode()
 
     def get_private_key(self):
         self.cur.execute(f"SELECT PRIVATE_KEY FROM Account WHERE ID=1")
@@ -194,7 +199,9 @@ class Crypt:
                     self.db.add_message(message, key, friend_user_id)
                     isnewmessage = True
             elif value[0:21] == "Start of public key: ":
-                self.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+                if self.db.get_public_key() != value[21:]:
+                    self.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+
         return isnewmessage
 
 class Telegram:
@@ -216,25 +223,29 @@ class Telegram:
         return userdialogs
 
     def send_message(self, entity, message):
-        key = self.crypt.db.get_friend_pubkey(user_id)
-        self.crypt.friend_pubkey = RSA.import_key(key)
-        encrypted_message = self.crypt.encrypt_message(message) 
-        #dialog = self.client.start_chat(self.get_entity(user_id))
-        self.client.send_message(int(entity), f"Start of msg: {encrypted_message}")
+        key = self.crypt.db.get_friend_pubkey(entity.id)
+        if key != "None":
+            self.crypt.friend_pubkey = RSA.import_key(key)
+            encrypted_message = self.crypt.encrypt_message(message) 
+            #dialog = self.client.start_chat(self.get_entity(user_id))
+            self.client.send_message(entity, f"Start of msg: {encrypted_message}")
+            return message
+        else:
+            return "У вас нет публичного ключа вашего друга!"
     
     def send_public_key(self, entity):
         publickey = self.crypt.db.get_public_key()
-        self.client.send_message(int(entity), f"Start of public key: {publickey.decode()}")
+        self.client.send_message(entity, f"Start of public key: {publickey}")
     
     def public_key_request(self, entity):
-        self.client.send_message(int(entity), 'Give me your public key please')
+        self.client.send_message(entity, 'Give me your public key please')
 
     def get_me(self):
         return self.client.get_me() 
 
-    def get_all_dialog_messages(self, id, limit=30):
+    def get_all_dialog_messages(self, entity, limit=30):
         messages = {}
-        for message in self.client.iter_messages(int(id)):
+        for message in self.client.iter_messages(entity):
             if limit<=0:
                 break
             messages[message.id] = message.text
@@ -276,29 +287,6 @@ class FriendSelectionWindow:
                         self.friend_name = dialog[0]
                         self.friend_id = dialog[1]
                         self.window.destroy()
-
-
-            
-
-        #     self.info_label = tk.Label(self.window, text="Чтобы добавить друга вам нужно ввести его user id, номер телефона или ник")
-        #     self.data_entry_label = tk.Label(self.window, text="Введите данные друга:")
-        #     self.info_label.pack(pady=10)
-        #     self.data_entry_label.pack(pady=10)
-        #     self.data_entry = tk.Entry(self.window)
-        #     self.data_entry.pack(pady=10)
-
-        #     self.name_label = tk.Label(self.window, text="Как вы назовете своего друга:")
-        #     self.name_entry = tk.Entry(self.window)
-        #     self.name_label.pack(pady=10)
-        #     self.name_entry.pack(pady=10)
-
-        #     self.enter_button = tk.Button(self.window, text="Enter", command=self.enter_friend)
-        #     self.enter_button.pack(pady=10)
-
-        # def enter_friend(self):
-        #     self.friend_name = self.name_entry.get()
-        #     self.friend_data = self.data_entry.get()
-        #     self.window.destroy()
         
         def get_friend(self):
             return self.friend_name, self.friend_id
@@ -338,7 +326,7 @@ class FriendSelectionWindow:
         selected_index = self.friends_listbox.curselection()
         if selected_index:
             self.selected_friend = self.friends_listbox.get(selected_index)
-            self.accountdb.del_friend_by_name(self.selected_account)
+            self.accountdb.del_friend_by_name(self.selected_friend)
             self.friends_listbox.delete(selected_index)
 
     def close(self):
@@ -499,7 +487,7 @@ class AccountSelectionWindow:
             self.root.destroy()
 
 class ChatApp:
-    def __init__(self, root, telegram, accountdb, friend_name, friend_user_id):
+    def __init__(self, root, crypt, telegram, accountdb, friend_name, friend_user_id):
         self.root = root
         self.root.title("EncryptedGram")
         self.root.configure(bg='#333')  # Установка темного цвета фона
@@ -507,9 +495,10 @@ class ChatApp:
         self.database = accountdb
         self.friend_name = friend_name
         self.friend_user_id = friend_user_id
-
+        self.friend_entity = self.telegram.get_entity(int(self.friend_user_id))
+        self.crypt = crypt
+        self.timer = 0
         self.messages = []
-
         self.create_widgets()
 
     def create_widgets(self):
@@ -541,43 +530,51 @@ class ChatApp:
         style = ttk.Style()
         style.theme_use('default')  # Используйте тему по умолчанию
         style.configure("Vertical.TScrollbar", troughcolor='#333', slidercolor='#666')
+        
+        self.root.after(5000, self.display_messages)
 
     def request_key(self):
-        entity = self.telegram.get_entity(self.friend_user_id)
-        self.telegram.public_key_request(entity)
+        self.telegram.public_key_request(self.friend_entity)
 
     def send_key(self):
-        self.telegram.send_public_key(self.friend_user_id)
+        self.telegram.send_public_key(self.friend_entity)
 
     def send_message(self):
         # Получение текста из поля ввода
         message_text = self.message_entry.get()
 
         if message_text:
-            self.telegram.send_message(message_text)
+            self.telegram.send_message(self.friend_entity, message_text)
             # Добавление нового сообщения в массив
             self.messages.append(f"Me: {message_text}")
 
             # Обновление отображения сообщений
-            self.display_messages()
+            self.display_messages(issent=True)
 
             # Очистка поля ввода
             self.message_entry.delete(0, 'end')
+   
 
-    def display_messages(self):
+    def display_messages(self, issent=False):
         # Очистка поля для отображения сообщений
         self.message_display.config(state='normal')
         self.message_display.delete(1.0, 'end')
+        print("Вызов")
+        if issent == False:
+            telegram_messages = self.telegram.get_all_dialog_messages(self.friend_entity, limit=10)
+            self.crypt.messages_check_and_write(telegram_messages, self.friend_user_id)
+            self.root.after(5000, self.display_messages)
 
         # Отображение сообщений из массива messages
         for message in self.messages:
             self.message_display.insert('end', f"{message}\n")
-
+        
         # Прокрутка текста вниз
         self.message_display.yview_moveto(1.0)
 
         # Блокировка поля для отображения, чтобы пользователь не мог редактировать текст
         self.message_display.config(state='disabled')
+        
     
 def select_account(masterdb):
     selection_window = tk.Tk()
@@ -591,43 +588,9 @@ def select_friend(database, telegram):
     friend_window = FriendSelectionWindow(selection_window, database, telegram)
     selection_window.mainloop()
     return friend_window.selected_friend
-    # friends = database.get_all_friends_names()
-    # friends.append("Добавить друга")
-    # friends.append("Удалить друга")
-    # friend_name = fzf.prompt(friends)[0]
-    # friend_user_id = None
-    # if friend_name == "Добавить друга":
-    #     dialogs = telegram.get_dialogs()
-    #     usernames = []
-    #     for dialog in dialogs:
-    #         usernames.append(dialog[0])
-    #     usernames.append("Добавить другим способом")
-    #     selectedfriend = fzf.prompt(usernames)[0]
-    #     if selectedfriend == "Добавить другим способом":
-    #         print('Для добавления друга нужен его User id либо номер телефона либо его ник в формате @my_dear_friend')
-    #         friend_user_id = input("Введите эти данные: ")
-    #         telegram_user_obj = telegram.get_entity(friend_user_id)
-    #         friendnamelocal = input("Как вы назовете своего друга? ")
-    #         friend_user_id = telegram_user_obj.id
-    #         database.add_friend(telegram_user_obj.id, friendnamelocal)
-    #         return friend_user_id, friendnamelocal
-    #     else:
-    #         telegram_user_obj = telegram.get_entity(dialogs[usernames.index(selectedfriend)][1])
-    #         friendnamelocal = input("Как вы назовете своего друга? ")
-    #         friend_user_id = telegram_user_obj.id
-    #         database.add_friend(telegram_user_obj.id, friendnamelocal)
-    #         return friend_user_id
-    # elif friend_name == "Удалить друга":
-    #     friends = database.get_all_friends_names(account_id)
-    #     friend_to_delete = fzf.prompt(friends)[0]
-    #     database.del_friend_by_name(friend_to_delete)
-    #     select_friend(fzf, database, telegram)
-    # else:
-    #     friend_user_id = database.get_friend_user_id_by_name(friend_name)
-    #     return friend_user_id, friend_name
 
 def start_main(database, friend_name, crypt, telegram):
     root = tk.Tk()
     friend_user_id = database.get_friend_user_id_by_name(friend_name)
-    app = ChatApp(root, telegram, database, friend_name, friend_user_id)
+    app = ChatApp(root, crypt, telegram, database, friend_name, friend_user_id)
     root.mainloop()
