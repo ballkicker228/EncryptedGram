@@ -8,12 +8,6 @@ def main():
     telegram = Telegram(api_id, api_hash, name, crypt)
     friend = select_friend(database, telegram)
     chat = start_main(database, friend, crypt, telegram)
-    
-
-    
-    # friend_user_id, friend_name = select_friend(fzf, database, telegram)
-    
-             
 
 if __name__=='__main__':
     main()

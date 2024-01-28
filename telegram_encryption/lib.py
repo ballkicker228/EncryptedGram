@@ -3,7 +3,7 @@ import sqlite3
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP           
 from telethon.sync import TelegramClient, events
-from telethon.errors import PasswordHashInvalidError
+from telethon.errors import SessionPasswordNeededError
 from telethon.tl import types
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -190,19 +190,6 @@ class Crypt:
         publickey = key.publickey().export_key()
         return privatekey, publickey
     
-    def messages_check_and_write(self, messages, friend_user_id):
-        isnewmessage = False
-        for key, value in messages.items():
-            if value[0:14] == "Start of msg: ":
-                if self.db.check_existing_message(key, friend_user_id) == False:
-                    message = self.decrypt_message(value[14:])
-                    self.db.add_message(message, key, friend_user_id)
-                    isnewmessage = True
-            elif value[0:21] == "Start of public key: ":
-                if self.db.get_public_key() != value[21:]:
-                    self.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
-
-        return isnewmessage
 
 class Telegram:
     def __init__(self, api_id, api_hash, name, crypt):
@@ -251,6 +238,27 @@ class Telegram:
             messages[message.id] = message.text
             limit -= 1
         return messages
+    
+    def messages_check_and_write(self, messages, friend_user_id):
+        isnewmessage = False
+        for key, value in messages.items():
+            if value[0:14] == "Start of msg: ":
+                if self.crypt.db.check_existing_message(key, friend_user_id) == False:
+                    try:
+                        message = self.crypt.decrypt_message(value[14:])
+                        self.crypt.db.add_message(message, key, friend_user_id)
+                        isnewmessage = True
+                    except:
+                        pass
+            elif value[0:21] == "Start of public key: ":
+                if self.crypt.db.get_public_key() != value[21:]:
+                    self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+            elif "Give me your public key please" in value:
+                key = self.crypt.db.get_public_key()
+                entity = self.get_entity(int(friend_user_id))
+                self.client.send_message(entity, key)
+
+        return isnewmessage
 
 class FriendSelectionWindow:
     class CreateFriendWindow:
@@ -431,13 +439,40 @@ class AccountSelectionWindow:
                 pass
                 #messagebox.showerror("Ошибка", f"Не удалось отправить код аутентификации: {e}")
         def enter_code(self):
-            self.client.sign_in(self.phone_number, code=self.code_entry.get(), phone_code_hash=self.phone_code_hash)
+            try:
+                self.client.sign_in(self.phone_number, code=self.code_entry.get(), phone_code_hash=self.phone_code_hash)
+                self.accountdb = Account(self.api_name)
+                private_key, public_key = Crypt.generate_keys()
+                self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
+                masterdb = MasterDatabase()
+                masterdb.add_account(self.api_name)
+                self.window.destroy()
+            except SessionPasswordNeededError:
+                self.code = self.code_entry.get()
+                self.code_label.destroy()
+                self.code_entry.destroy()
+                self.submit_button.destroy()
+                self.close_button.destroy()
+                self.password_entry_label = tk.Label(self.window, text="Введите облачный пароль:")
+                self.password_entry = tk.Entry(self.window)
+                self.submit_button = tk.Button(self.window, text="Enter", command=self.enter_password)
+                self.close_button = tk.Button(self.window, text="Выйти", command=self.close)
+                self.password_entry_label.pack(pady=10)
+                self.password_entry.pack(pady=10)
+                self.submit_button.pack(pady=10)
+                self.close_button.pack(pady=10)
+                
+        
+        def enter_password(self):
+            self.password=self.password_entry.get()
+            self.client.sign_in(password=self.password)
             self.accountdb = Account(self.api_name)
             private_key, public_key = Crypt.generate_keys()
             self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
             masterdb = MasterDatabase()
             masterdb.add_account(self.api_name)
             self.window.destroy()
+
         def close(self):
             self.window.destroy()
 
@@ -559,11 +594,13 @@ class ChatApp:
         # Очистка поля для отображения сообщений
         self.message_display.config(state='normal')
         self.message_display.delete(1.0, 'end')
-        print("Вызов")
+
         if issent == False:
             telegram_messages = self.telegram.get_all_dialog_messages(self.friend_entity, limit=10)
-            self.crypt.messages_check_and_write(telegram_messages, self.friend_user_id)
+            self.telegram.messages_check_and_write(telegram_messages, self.friend_user_id)
             self.root.after(5000, self.display_messages)
+
+        self.messages = self.database.get_all_messages(self.friend_user_id)
 
         # Отображение сообщений из массива messages
         for message in self.messages:
