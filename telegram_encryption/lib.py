@@ -164,21 +164,10 @@ class Account:
 class Crypt:
     def __init__(self, db: Account):
         self.prkey = db.get_private_key()
-        #self.cipher = None
         self.db = db
-        #self.pubkey = RSA.import_key(db.get_public_key(account_id))
-        #self.private_cipher = PKCS1_OAEP.new(self.prkey)
         self.friend_pubkey = None
     
-    #def add_friend_pubkey(self, friend_user_id, pubkey):
-    #self.db.add_pubkey_to_friend
-    
     def encrypt_message(self, message):
-        #if self.friend_pubkey == None:
-        #    print("Sorry, but you can't encrypt message without your friend's publickey!")
-        #    quit()
-        #else:
-        #self.cipher = PKCS1_OAEP.new(self.friend_pubkey)
         byte_message = message.encode('utf-8')
         return encrypt(self.friend_pubkey, byte_message).hex()
 
@@ -419,7 +408,6 @@ class AccountSelectionWindow:
             try:
                 phone_code = self.client.send_code_request(self.phone_number)
                 self.phone_code_hash = phone_code.phone_code_hash
-                #messagebox.showinfo("Успех", "Код аутентификации отправлен. Пожалуйста, введите код.")
                 self.phone_label.destroy()
                 self.phone_entry.destroy()
                 self.api_id_label.destroy()
@@ -439,7 +427,7 @@ class AccountSelectionWindow:
                 self.close_button.pack(pady=10)
             except Exception as e:
                 pass
-                #messagebox.showerror("Ошибка", f"Не удалось отправить код аутентификации: {e}")
+            
         def enter_code(self):
             try:
                 self.client.sign_in(self.phone_number, code=self.code_entry.get(), phone_code_hash=self.phone_code_hash)

@@ -1,2 +1,4 @@
 # EncryptedGram
-Скрипт для шифрованной RSA переписки через telegram.
+Скрипт для шифрованной переписки через telegram.
+
+![Alt demo](demo.jpg)
