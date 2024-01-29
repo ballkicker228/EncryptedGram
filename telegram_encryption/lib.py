@@ -1,12 +1,12 @@
 import os
-import sqlite3
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP           
+import sqlite3         
 from telethon.sync import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError
 from telethon.tl import types
 import tkinter as tk
 from tkinter import ttk, scrolledtext
+from ecies.utils import generate_eth_key, generate_key
+from ecies import encrypt, decrypt
 
 class MasterDatabase:
     def __init__(self): 
@@ -119,7 +119,7 @@ class Account:
 
     def get_public_key(self):
         self.cur.execute(f"SELECT PUBLIC_KEY FROM Account WHERE ID=1")
-        return self.cur.fetchone()[0].decode()
+        return self.cur.fetchone()[0]
 
     def get_private_key(self):
         self.cur.execute(f"SELECT PRIVATE_KEY FROM Account WHERE ID=1")
@@ -163,11 +163,11 @@ class Account:
 
 class Crypt:
     def __init__(self, db: Account):
-        self.prkey = RSA.import_key(db.get_private_key())
-        self.cipher = None
+        self.prkey = db.get_private_key()
+        #self.cipher = None
         self.db = db
         #self.pubkey = RSA.import_key(db.get_public_key(account_id))
-        self.private_cipher = PKCS1_OAEP.new(self.prkey)
+        #self.private_cipher = PKCS1_OAEP.new(self.prkey)
         self.friend_pubkey = None
     
     #def add_friend_pubkey(self, friend_user_id, pubkey):
@@ -178,18 +178,18 @@ class Crypt:
         #    print("Sorry, but you can't encrypt message without your friend's publickey!")
         #    quit()
         #else:
-        self.cipher = PKCS1_OAEP.new(self.friend_pubkey)
+        #self.cipher = PKCS1_OAEP.new(self.friend_pubkey)
         byte_message = message.encode('utf-8')
-        return self.cipher.encrypt(byte_message).hex()
+        return encrypt(self.friend_pubkey, byte_message).hex()
 
     def decrypt_message(self, message):
-        return self.private_cipher.decrypt(bytes.fromhex(message)).decode()
+        return decrypt(self.prkey, bytes.fromhex(message)).decode()
     
     def generate_keys():
-        key = RSA.generate(4096)
-        privatekey = key.export_key()
-        publickey = key.publickey().export_key()
-        return privatekey, publickey
+        eth_k = generate_eth_key()
+        sk_hex = eth_k.to_hex()
+        pk_hex = eth_k.public_key.to_hex()
+        return sk_hex, pk_hex
     
 
 class Telegram:
@@ -213,7 +213,7 @@ class Telegram:
     def send_message(self, entity, message):
         key = self.crypt.db.get_friend_pubkey(entity.id)
         if key != "None":
-            self.crypt.friend_pubkey = RSA.import_key(key)
+            self.crypt.friend_pubkey = key
             encrypted_message = self.crypt.encrypt_message(message) 
             #dialog = self.client.start_chat(self.get_entity(user_id))
             sentmessage = self.client.send_message(entity, f"Start of msg: {encrypted_message}")
@@ -243,21 +243,24 @@ class Telegram:
     
     def messages_check_and_write(self, messages, friend_user_id):
         for key, value in messages.items():
-            if value[0:14] == "Start of msg: ":
-                if self.crypt.db.check_existing_message(key, friend_user_id) == False:
-                    try:
-                        message = self.crypt.db.get_friend_name_by_id(friend_user_id) + ": " + self.crypt.decrypt_message(value[14:])
-                        self.crypt.db.add_message(message, key, friend_user_id)
-                        isnewmessage = True
-                    except:
-                        pass
-            elif value[0:21] == "Start of public key: ":
-                if self.crypt.db.get_public_key() != value[21:]:
-                    self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
-            elif "Give me your public key please" in value:
-                key = self.crypt.db.get_public_key()
-                entity = self.get_entity(int(friend_user_id))
-                self.client.send_message(entity, key)
+            try:
+                if value[0:14] == "Start of msg: ":
+                    if self.crypt.db.check_existing_message(key, friend_user_id) == False:
+                        try:
+                            message = self.crypt.db.get_friend_name_by_id(friend_user_id) + ": " + self.crypt.decrypt_message(value[14:])
+                            self.crypt.db.add_message(message, key, friend_user_id)
+                            isnewmessage = True
+                        except:
+                            pass
+                elif value[0:21] == "Start of public key: ":
+                    if self.crypt.db.get_public_key() != value[21:]:
+                        self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+                elif "Give me your public key please" in value:
+                    key = self.crypt.db.get_public_key()
+                    entity = self.get_entity(int(friend_user_id))
+                    self.client.send_message(entity, key)
+            except:
+                pass
 
 class FriendSelectionWindow:
     class CreateFriendWindow:
