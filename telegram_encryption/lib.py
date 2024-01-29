@@ -7,9 +7,6 @@ from telethon.errors import SessionPasswordNeededError
 from telethon.tl import types
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-import threading
-from timeit import default_timer
-
 
 class MasterDatabase:
     def __init__(self): 
@@ -152,6 +149,10 @@ class Account:
         self.cur.execute(f"SELECT FRIEND_ID FROM Friends WHERE FRIEND_NAME = '{friend_name}'")
         return self.cur.fetchone()[0]
     
+    def get_friend_name_by_id(self, friend_user_id):
+        self.cur.execute(f"SELECT FRIEND_NAME FROM Friends WHERE FRIEND_ID = {friend_user_id}")
+        return self.cur.fetchone()[0]
+    
     def get_all_messages(self, friend_id):
         self.cur.execute(f"SELECT MESSAGE FROM Messages WHERE FRIEND_ID={friend_id}")
         messages = self.cur.fetchall()
@@ -215,7 +216,8 @@ class Telegram:
             self.crypt.friend_pubkey = RSA.import_key(key)
             encrypted_message = self.crypt.encrypt_message(message) 
             #dialog = self.client.start_chat(self.get_entity(user_id))
-            self.client.send_message(entity, f"Start of msg: {encrypted_message}")
+            sentmessage = self.client.send_message(entity, f"Start of msg: {encrypted_message}")
+            self.crypt.db.add_message(f"Me: {message}", sentmessage.id, entity.id)
             return message
         else:
             return "У вас нет публичного ключа вашего друга!"
@@ -240,12 +242,11 @@ class Telegram:
         return messages
     
     def messages_check_and_write(self, messages, friend_user_id):
-        isnewmessage = False
         for key, value in messages.items():
             if value[0:14] == "Start of msg: ":
                 if self.crypt.db.check_existing_message(key, friend_user_id) == False:
                     try:
-                        message = self.crypt.decrypt_message(value[14:])
+                        message = self.crypt.db.get_friend_name_by_id(friend_user_id) + ": " + self.crypt.decrypt_message(value[14:])
                         self.crypt.db.add_message(message, key, friend_user_id)
                         isnewmessage = True
                     except:
@@ -257,8 +258,6 @@ class Telegram:
                 key = self.crypt.db.get_public_key()
                 entity = self.get_entity(int(friend_user_id))
                 self.client.send_message(entity, key)
-
-        return isnewmessage
 
 class FriendSelectionWindow:
     class CreateFriendWindow:
