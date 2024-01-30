@@ -170,7 +170,7 @@ class Crypt:
         self.db = db
         self.friend_pubkey = None
     
-    def encrypt_message(self, message):
+    def encrypt_message(self, message): #TODO pubkey exception
         byte_message = message.encode('utf-8')
         return encrypt(self.friend_pubkey, byte_message).hex()
 
