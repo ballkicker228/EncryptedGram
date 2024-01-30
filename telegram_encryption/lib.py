@@ -234,7 +234,7 @@ class Telegram:
         return messages
     
     def messages_check_and_write(self, messages, friend_user_id):
-        for key, value in messages.items():
+        for key, value in reversed(messages.items()):
             try:
                 if value[0:14] == "Start of msg: ":
                     if self.crypt.db.check_existing_message(key, friend_user_id) == False:
@@ -278,7 +278,6 @@ class FriendSelectionWindow:
             self.dialogs = self.telegram.get_dialogs()
             for dialog in self.dialogs:
                 self.data_listbox.insert(tk.END, dialog[0])
-                telegram_user_obj = self.telegram.get_entity(int(dialog[1]))
         
         def submit_friend(self):
             selected_index = self.data_listbox.curselection()
@@ -286,12 +285,25 @@ class FriendSelectionWindow:
                 self.selected_friend = self.data_listbox.get(selected_index)
                 for dialog in self.dialogs:
                     if dialog[0] == self.selected_friend:
-                        self.friend_name = dialog[0]
-                        self.friend_id = dialog[1]
-                        self.window.destroy()
+                        self.dialog = dialog
+                        self.info_label.destroy()
+                        self.data_label.destroy()
+                        self.data_listbox.destroy()
+                        self.submit_button.destroy()
+                        self.local_name_label = tk.Label(self.window, text="Введите имя для друга:")
+                        self.local_name_entry = tk.Entry(self.window)
+                        self.submit_button = tk.Button(self.window, text="Submit", command=self.enter_friend)
+                        self.local_name_label.pack(pady=10)
+                        self.local_name_entry.pack(pady=10)
+                        self.submit_button.pack(pady=10)
         
         def get_friend(self):
             return self.friend_name, self.friend_id
+
+        def enter_friend(self):
+            self.friend_name = self.local_name_entry.get()
+            self.friend_id = self.dialog[1]
+            self.window.destroy()
 
     def __init__(self, root, accountdb, telegram):
         self.root = root
@@ -371,10 +383,22 @@ class AccountSelectionWindow:
             self.accountdb = None
             self.account_name = None
             self.window.configure(bg="#333")
-
+            self.masterdb = MasterDatabase()
             self.create_widgets()
 
+        def clear_window(self):
+            # Destroy all widgets in the window
+            for widget in self.window.winfo_children():
+                widget.destroy()
+            # Update the window to reflect the changes
+            self.window.update()
+
         def create_widgets(self):
+            self.name_label = tk.Label(self.window, text="Введите название API:")
+            self.name_label.pack(pady=10)
+            self.name_entry = tk.Entry(self.window)
+            self.name_entry.pack(pady=10)
+
             self.phone_label = tk.Label(self.window, text="Введите номер телефона:")
             self.phone_label.pack(pady=10)
             self.phone_entry = tk.Entry(self.window)
@@ -390,11 +414,6 @@ class AccountSelectionWindow:
             self.api_hash_entry = tk.Entry(self.window)
             self.api_hash_entry.pack(pady=10)
 
-            self.api_name_label = tk.Label(self.window, text="Введите название API:")
-            self.api_name_label.pack(pady=10)
-            self.api_name_entry = tk.Entry(self.window)
-            self.api_name_entry.pack(pady=10)
-
             self.submit_button = tk.Button(self.window, text="Отправить код", command=self.send_code)
             self.submit_button.pack(pady=10)
 
@@ -404,9 +423,9 @@ class AccountSelectionWindow:
             self.phone_number = self.phone_entry.get()
             self.api_id = self.api_id_entry.get()
             self.api_hash = self.api_hash_entry.get()
-            self.api_name = self.api_name_entry.get()
-            self.account_name = self.api_name
-            self.client = TelegramClient(self.api_name, self.api_id, self.api_hash)
+            self.name = self.name_entry.get()
+            self.account_name = self.name
+            self.client = TelegramClient(self.name, self.api_id, self.api_hash)
             self.client.connect()
             try:
                 phone_code = self.client.send_code_request(self.phone_number)
@@ -417,8 +436,8 @@ class AccountSelectionWindow:
                 self.api_id_entry.destroy()
                 self.api_hash_label.destroy()
                 self.api_hash_entry.destroy()
-                self.api_name_label.destroy()
-                self.api_name_entry.destroy()
+                self.name_label.destroy()
+                self.name_entry.destroy()
                 self.submit_button.destroy()
                 self.code_label = tk.Label(self.window, text="Введите код подтверждения:")
                 self.code_label.pack(pady=10)
@@ -435,13 +454,12 @@ class AccountSelectionWindow:
             try:
                 self.client.sign_in(self.phone_number, code=self.code_entry.get(), phone_code_hash=self.phone_code_hash)
                 self.client.disconnect()
-                self.accountdb = Account(self.api_name)
+                self.accountdb = Account(self.name)
                 private_key, public_key = Crypt.generate_keys()
-                self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
-                masterdb = MasterDatabase()
-                masterdb.add_account(self.api_name)
+                self.accountdb.write_account(self.api_id, self.api_hash, self.name, public_key, private_key)
+                self.masterdb.add_account(self.name)
                 self.accountdb.close()
-                masterdb.close()
+                self.masterdb.close()
                 self.window.destroy()
             except SessionPasswordNeededError:
                 self.code = self.code_entry.get()
@@ -463,13 +481,12 @@ class AccountSelectionWindow:
             self.password=self.password_entry.get()
             self.client.sign_in(password=self.password)
             self.client.disconnect()
-            self.accountdb = Account(self.api_name)
+            self.accountdb = Account(self.name)
             private_key, public_key = Crypt.generate_keys()
-            self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
-            masterdb = MasterDatabase()
-            masterdb.add_account(self.api_name)
+            self.accountdb.write_account(self.api_id, self.api_hash, self.name, public_key, private_key)
+            self.masterdb.add_account(self.name)
             self.accountdb.close()
-            masterdb.close()
+            self.masterdb.close()
             self.window.destroy()
 
         def close(self):
