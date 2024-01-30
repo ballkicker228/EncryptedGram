@@ -21,10 +21,7 @@ class MasterDatabase:
     def check_name_exists(self, name):
         self.cur.execute(f"SELECT NAME FROM Accounts WHERE NAME='{name}'")
         check = self.cur.fetchone()[0]
-        if check[0] == name:
-            return True
-        else:
-            return False
+        return check[0] == name
 
     def fetch_all_accounts(self):
         self.cur.execute("""SELECT NAME FROM Accounts""")
@@ -44,6 +41,9 @@ class MasterDatabase:
             os.remove(f"./telegram-{name}.db")
         except Exception as e:
             print(e)
+        
+    def close(self):
+        self.con.close()
 
 
 class Account:
@@ -160,6 +160,9 @@ class Account:
         for message in messages:
             normanlized_messages.append(message[0])
         return normanlized_messages
+
+    def close(self):
+        self.con.close()
 
 class Crypt:
     def __init__(self, db: Account):
@@ -431,11 +434,14 @@ class AccountSelectionWindow:
         def enter_code(self):
             try:
                 self.client.sign_in(self.phone_number, code=self.code_entry.get(), phone_code_hash=self.phone_code_hash)
+                self.client.disconnect()
                 self.accountdb = Account(self.api_name)
                 private_key, public_key = Crypt.generate_keys()
                 self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
                 masterdb = MasterDatabase()
                 masterdb.add_account(self.api_name)
+                self.accountdb.close()
+                masterdb.close()
                 self.window.destroy()
             except SessionPasswordNeededError:
                 self.code = self.code_entry.get()
@@ -456,11 +462,14 @@ class AccountSelectionWindow:
         def enter_password(self):
             self.password=self.password_entry.get()
             self.client.sign_in(password=self.password)
+            self.client.disconnect()
             self.accountdb = Account(self.api_name)
             private_key, public_key = Crypt.generate_keys()
             self.accountdb.write_account(self.api_id, self.api_hash, self.api_name, public_key, private_key)
             masterdb = MasterDatabase()
             masterdb.add_account(self.api_name)
+            self.accountdb.close()
+            masterdb.close()
             self.window.destroy()
 
         def close(self):
