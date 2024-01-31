@@ -273,7 +273,7 @@ class FriendSelectionWindow:
             self.data_label.pack(pady=10)
             self.data_listbox = tk.Listbox(self.window, selectmode=tk.SINGLE, bg="#444", fg="white")
             self.data_listbox.pack(pady=10)
-            self.submit_button = tk.Button(self.window, text="Enter", command=self.submit_friend)
+            self.submit_button = tk.Button(self.window, text="Enter", command=self.submit_friend, bg="#666", fg="white")
             self.submit_button.pack(pady=10)
             self.dialogs = self.telegram.get_dialogs()
             for dialog in self.dialogs:
@@ -292,7 +292,7 @@ class FriendSelectionWindow:
                         self.submit_button.destroy()
                         self.local_name_label = tk.Label(self.window, text="Введите имя для друга:")
                         self.local_name_entry = tk.Entry(self.window)
-                        self.submit_button = tk.Button(self.window, text="Submit", command=self.enter_friend)
+                        self.submit_button = tk.Button(self.window, text="Submit", command=self.enter_friend, bg="#666", fg="white")
                         self.local_name_label.pack(pady=10)
                         self.local_name_entry.pack(pady=10)
                         self.submit_button.pack(pady=10)
@@ -394,7 +394,7 @@ class AccountSelectionWindow:
             self.window.update()
 
         def create_widgets(self):
-            self.name_label = tk.Label(self.window, text="Введите название API:")
+            self.name_label = tk.Label(self.window, text="Придумайте имя аккаунту:")
             self.name_label.pack(pady=10)
             self.name_entry = tk.Entry(self.window)
             self.name_entry.pack(pady=10)
@@ -414,10 +414,10 @@ class AccountSelectionWindow:
             self.api_hash_entry = tk.Entry(self.window)
             self.api_hash_entry.pack(pady=10)
 
-            self.submit_button = tk.Button(self.window, text="Отправить код", command=self.send_code)
+            self.submit_button = tk.Button(self.window, text="Отправить код", command=self.send_code, bg="#666", fg="white")
             self.submit_button.pack(pady=10)
 
-            self.close_button = tk.Button(self.window, text="Выйти", command=self.close)
+            self.close_button = tk.Button(self.window, text="Выйти", command=self.close, bg="#666", fg="white")
             self.close_button.pack(pady=10)
         def send_code(self):
             self.phone_number = self.phone_entry.get()
@@ -443,9 +443,9 @@ class AccountSelectionWindow:
                 self.code_label.pack(pady=10)
                 self.code_entry = tk.Entry(self.window)
                 self.code_entry.pack(pady=10)
-                self.submit_button = tk.Button(self.window, text="Enter", command=self.enter_code)
+                self.submit_button = tk.Button(self.window, text="Enter", command=self.enter_code, bg="#666", fg="white")
                 self.submit_button.pack(pady=10)
-                self.close_button = tk.Button(self.window, text="Выйти", command=self.close)
+                self.close_button = tk.Button(self.window, text="Выйти", command=self.close, bg="#666", fg="white")
                 self.close_button.pack(pady=10)
             except Exception as e:
                 pass
@@ -469,8 +469,8 @@ class AccountSelectionWindow:
                 self.close_button.destroy()
                 self.password_entry_label = tk.Label(self.window, text="Введите облачный пароль:")
                 self.password_entry = tk.Entry(self.window)
-                self.submit_button = tk.Button(self.window, text="Enter", command=self.enter_password)
-                self.close_button = tk.Button(self.window, text="Выйти", command=self.close)
+                self.submit_button = tk.Button(self.window, text="Enter", command=self.enter_password, bg="#666", fg="white")
+                self.close_button = tk.Button(self.window, text="Выйти", command=self.close, bg="#666", fg="white")
                 self.password_entry_label.pack(pady=10)
                 self.password_entry.pack(pady=10)
                 self.submit_button.pack(pady=10)
@@ -562,9 +562,9 @@ class ChatApp:
         self.message_entry.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
         # Кнопка для отправки сообщения
-        send_button = tk.Button(self.root, text="Send", command=self.send_message, bg='blue', fg='white', highlightthickness=0)
-        request_button = tk.Button(self.root, text="Key Request", command=self.request_key, bg='blue', fg='white', highlightthickness=0)
-        send_key_button = tk.Button(self.root, text="Send Key", command=self.send_key, bg='blue', fg='white', highlightthickness=0)
+        send_button = tk.Button(self.root, text="Send", command=self.send_message, bg='#666', fg='white', highlightthickness=0)
+        request_button = tk.Button(self.root, text="Key Request", command=self.request_key, bg='#666', fg='white', highlightthickness=0)
+        send_key_button = tk.Button(self.root, text="Send Key", command=self.send_key, bg='#666', fg='white', highlightthickness=0)
         send_button.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         request_button.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
         send_key_button.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
