@@ -554,7 +554,7 @@ class ChatApp:
 
     def create_widgets(self):
         # Создание поля для отображения сообщений
-        self.message_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=15, width=40, bg='#333', fg='white', highlightthickness=0)
+        self.message_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=15, width=40, bg='#333', fg='white', highlightthickness=0, highlightbackground='#333')
         self.message_display.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky="nsew")
 
         # Создание поля ввода для сообщения
@@ -576,11 +576,6 @@ class ChatApp:
 
         # Назначение события нажатия Enter для отправки сообщения
         self.message_entry.bind("<Return>", lambda event: self.send_message())
-
-        # Установка цвета полосы прокрутки
-        style = ttk.Style()
-        style.theme_use('default')  # Используйте тему по умолчанию
-        style.configure("Vertical.TScrollbar", troughcolor='#333', slidercolor='#666')
         
         self.root.after(5000, self.display_messages)
 

@@ -2,6 +2,7 @@
 Скрипт для шифрованной переписки через telegram.
 
 ![Alt demo](demo.png)
+![Alt telegram](telegram.png)
 
 1. Клонируй репозиторий:
 
