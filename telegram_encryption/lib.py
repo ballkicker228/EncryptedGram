@@ -206,8 +206,7 @@ class Telegram:
         key = self.crypt.db.get_friend_pubkey(entity.id)
         if key != "None":
             self.crypt.friend_pubkey = key
-            encrypted_message = self.crypt.encrypt_message(message) 
-            #dialog = self.client.start_chat(self.get_entity(user_id))
+            encrypted_message = self.crypt.encrypt_message(message)
             sentmessage = self.client.send_message(entity, f"Start of msg: {encrypted_message}")
             self.crypt.db.add_message(f"Me: {message}", sentmessage.id, entity.id)
             return message
@@ -273,7 +272,7 @@ class FriendSelectionWindow:
             self.data_label.pack(pady=10)
             self.data_listbox = tk.Listbox(self.window, selectmode=tk.SINGLE, bg="#444", fg="white")
             self.data_listbox.pack(pady=10)
-            self.submit_button = ttk.Button(self.window, text="Enter", command=self.submit_friend)#, bg="#666", fg="white")
+            self.submit_button = ttk.Button(self.window, text="Enter", command=self.submit_friend)
             self.submit_button.pack(pady=10)
             self.dialogs = self.telegram.get_dialogs()
             for dialog in self.dialogs:
@@ -292,7 +291,7 @@ class FriendSelectionWindow:
                         self.submit_button.destroy()
                         self.local_name_label = ttk.Label(self.window, text="Введите имя для друга:")
                         self.local_name_entry = ttk.Entry(self.window)
-                        self.submit_button = ttk.Button(self.window, text="Submit", command=self.enter_friend)#, bg="#666", fg="white")
+                        self.submit_button = ttk.Button(self.window, text="Submit", command=self.enter_friend)
                         self.local_name_label.pack(pady=10)
                         self.local_name_entry.pack(pady=10)
                         self.submit_button.pack(pady=10)
@@ -328,10 +327,10 @@ class FriendSelectionWindow:
         self.friends_listbox.pack(padx=10, pady=10)
 
         # Кнопка выбора аккаунта
-        select_button = ttk.Button(self.root, text="Выбрать", command=self.select_friend)#, bg="#666", fg="white")
-        add_button = ttk.Button(self.root, text="Добавить", command=self.add_friend)#, bg="#666", fg="white")
-        del_button = ttk.Button(self.root, text="Удалить", command=self.del_friend)#, bg="#666", fg="white")
-        quit_button = ttk.Button(self.root, text="Выйти", command=self.close)#, bg="#666", fg="white")
+        select_button = ttk.Button(self.root, text="Выбрать", command=self.select_friend)
+        add_button = ttk.Button(self.root, text="Добавить", command=self.add_friend)
+        del_button = ttk.Button(self.root, text="Удалить", command=self.del_friend)
+        quit_button = ttk.Button(self.root, text="Выйти", command=self.close)
     
         select_button.pack(pady=10)
         add_button.pack(pady=10)
@@ -375,9 +374,6 @@ class AccountSelectionWindow:
         
         self.root.title("Выберите аккаунт")
 
-        # Установка цветов фона
-        #self.root.configure(bg="#333")
-
         self.create_widgets()
 
     class CreateAccountWindow():
@@ -387,7 +383,6 @@ class AccountSelectionWindow:
             self.window.title("Создание аккаунта")
             self.accountdb = None
             self.account_name = None
-            self.window.configure(bg="#333")
             self.masterdb = MasterDatabase()
             self.create_widgets()
 
@@ -419,10 +414,10 @@ class AccountSelectionWindow:
             self.api_hash_entry = ttk.Entry(self.window)
             self.api_hash_entry.pack(pady=10)
 
-            self.submit_button = ttk.Button(self.window, text="Отправить код", command=self.send_code)#, bg="#666", fg="white")
+            self.submit_button = ttk.Button(self.window, text="Отправить код", command=self.send_code)
             self.submit_button.pack(pady=10)
 
-            self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)#, bg="#666", fg="white")
+            self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)
             self.close_button.pack(pady=10)
         def send_code(self):
             self.phone_number = self.phone_entry.get()
@@ -448,9 +443,9 @@ class AccountSelectionWindow:
                 self.code_label.pack(pady=10)
                 self.code_entry = ttk.Entry(self.window)
                 self.code_entry.pack(pady=10)
-                self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_code, bg="#666", fg="white")
+                self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_code)
                 self.submit_button.pack(pady=10)
-                self.close_button = ttk.Button(self.window, text="Выйти", command=self.close, bg="#666", fg="white")
+                self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)
                 self.close_button.pack(pady=10)
             except Exception as e:
                 pass
@@ -474,8 +469,8 @@ class AccountSelectionWindow:
                 self.close_button.destroy()
                 self.password_entry_label = ttk.Label(self.window, text="Введите облачный пароль:")
                 self.password_entry = ttk.Entry(self.window)
-                self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_password, bg="#666", fg="white")
-                self.close_button = ttk.Button(self.window, text="Выйти", command=self.close, bg="#666", fg="white")
+                self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_password)
+                self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)
                 self.password_entry_label.pack(pady=10)
                 self.password_entry.pack(pady=10)
                 self.submit_button.pack(pady=10)
@@ -499,17 +494,17 @@ class AccountSelectionWindow:
 
     def create_widgets(self):
         # Создание списка аккаунтов
-        self.account_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)#, bg="#444", fg="white")
+        self.account_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)
         for account in self.accounts:
             self.account_listbox.insert(tk.END, account)
 
         self.account_listbox.pack(padx=10, pady=10)
 
         # Кнопка выбора аккаунта
-        select_button = ttk.Button(self.root, text="Выбрать", command=self.select_account)#, bg="#666", fg="white")
-        add_button = ttk.Button(self.root, text="Добавить", command=self.add_account)#, bg="#666", fg="white")
-        del_button = ttk.Button(self.root, text="Удалить", command=self.del_account)#, bg="#666", fg="white")
-        quit_button = ttk.Button(self.root, text="Выйти", command=self.close)#, bg="#666", fg="white")
+        select_button = ttk.Button(self.root, text="Выбрать", command=self.select_account)
+        add_button = ttk.Button(self.root, text="Добавить", command=self.add_account)
+        del_button = ttk.Button(self.root, text="Удалить", command=self.del_account)
+        quit_button = ttk.Button(self.root, text="Выйти", command=self.close)
     
         select_button.pack(pady=10)
         add_button.pack(pady=10)
@@ -565,13 +560,13 @@ class ChatApp:
         self.message_display.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky="nsew")
 
         # Создание поля ввода для сообщения
-        self.message_entry = ttk.Entry(self.root, width=30)#, bg='#444', fg='white', highlightthickness=0)
+        self.message_entry = ttk.Entry(self.root, width=30)
         self.message_entry.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
         # Кнопка для отправки сообщения
-        send_button = ttk.Button(self.root, text="Send", command=self.send_message)#, bg='#666', fg='white', highlightthickness=0)
-        request_button = ttk.Button(self.root, text="Key Request", command=self.request_key)#, bg='#666', fg='white', highlightthickness=0)
-        send_key_button = ttk.Button(self.root, text="Send Key", command=self.send_key)#, bg='#666', fg='white', highlightthickness=0)
+        send_button = ttk.Button(self.root, text="Send", command=self.send_message)
+        request_button = ttk.Button(self.root, text="Key Request", command=self.request_key)
+        send_key_button = ttk.Button(self.root, text="Send Key", command=self.send_key)
         send_button.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
         request_button.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
         send_key_button.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
