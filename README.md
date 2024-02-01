@@ -29,3 +29,5 @@
     ```
     poetry run main
     ```
+
+При первом входе в аккаунт тебе понадобятся API Id и API Hash, которые можно получить на сайте https://my.telegram.org
