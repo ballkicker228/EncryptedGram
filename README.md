@@ -1,8 +1,10 @@
 # EncryptedGram
-Скрипт для шифрованной переписки через telegram.
+Скрипт для зашифрованной эллиптическим шифрованием переписки через telegram.
 
 ![Alt demo](demo.png)
 ![Alt telegram](telegram.png)
+
+Тебе понадобится Python и менеджер проектов Poetry: https://python-poetry.org/
 
 1. Клонируй репозиторий:
 
