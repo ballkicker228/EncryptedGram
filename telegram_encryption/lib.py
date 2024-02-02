@@ -121,6 +121,11 @@ class Account:
         self.cur.execute(f"SELECT PUBLIC_KEY FROM Account WHERE ID=1")
         return self.cur.fetchone()[0]
 
+    def change_keys(self, secret_key, public_key):
+        self.cur.execute(f"UPDATE Account SET PUBLIC_KEY='{public_key}' WHERE ID=1")
+        self.cur.execute(f"UPDATE Account SET PRIVATE_KEY='{secret_key}' WHERE ID=1")
+        self.con.commit()
+
     def get_private_key(self):
         self.cur.execute(f"SELECT PRIVATE_KEY FROM Account WHERE ID=1")
         return self.cur.fetchone()[0]
@@ -153,6 +158,10 @@ class Account:
         self.cur.execute(f"SELECT FRIEND_NAME FROM Friends WHERE FRIEND_ID = {friend_user_id}")
         return self.cur.fetchone()[0]
     
+    def delete_messages(self, friend_id):
+        self.cur.execute(f"DELETE FROM Messages WHERE FRIEND_ID={friend_id}")
+        self.con.commit()
+
     def get_all_messages(self, friend_id):
         self.cur.execute(f"SELECT MESSAGE FROM Messages WHERE FRIEND_ID={friend_id}")
         messages = self.cur.fetchall()
@@ -173,6 +182,10 @@ class Crypt:
     def encrypt_message(self, message): #TODO pubkey exception
         byte_message = message.encode('utf-8')
         return encrypt(self.friend_pubkey, byte_message).hex()
+    
+    def change_keys(self, secret_key, public_key):
+        self.prkey = secret_key
+        self.db.change_keys(secret_key, public_key)
 
     def decrypt_message(self, message):
         return decrypt(self.prkey, bytes.fromhex(message)).decode()
@@ -231,6 +244,9 @@ class Telegram:
             messages[message.id] = message.text
             limit -= 1
         return messages
+    
+    def close(self):
+        self.client.disconnect()
     
     def messages_check_and_write(self, messages, friend_user_id):
         for key, value in reversed(messages.items()):
@@ -544,6 +560,7 @@ class ChatApp:
         self.style = ttk.Style(self.root)
         self.root.tk.call('source', 'forest-dark.tcl')
         self.style.theme_use("forest-dark")
+        self.action = None
         self.telegram = telegram
         self.database = accountdb
         self.friend_name = friend_name
@@ -556,30 +573,61 @@ class ChatApp:
 
     def create_widgets(self):
         # Создание поля для отображения сообщений
-        self.message_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=15, width=40, bg='#333', fg='white', highlightthickness=0, highlightbackground='#333')
-        self.message_display.grid(row=0, column=0, padx=10, pady=10, columnspan=2, sticky="nsew")
+        self.message_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=15, width=40)#, bg='#333', fg='white', highlightthickness=0, highlightbackground='#333')
+        self.message_display.grid(row=1, column=0, padx=10, pady=10, columnspan=2, sticky="nsew")
 
         # Создание поля ввода для сообщения
         self.message_entry = ttk.Entry(self.root, width=30)
-        self.message_entry.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.message_entry.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
 
         # Кнопка для отправки сообщения
         send_button = ttk.Button(self.root, text="Send", command=self.send_message)
-        request_button = ttk.Button(self.root, text="Key Request", command=self.request_key)
-        send_key_button = ttk.Button(self.root, text="Send Key", command=self.send_key)
-        send_button.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        request_button.grid(row=1, column=2, padx=10, pady=10, sticky="ew")
-        send_key_button.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
+        send_button.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        
+        top_buttons_frame = ttk.Frame(self.root)
+        top_buttons_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 
-        # Настройка параметров размещения
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_columnconfigure(1, weight=1)
+        # Кнопка запроса ключа
+        request_button = ttk.Button(top_buttons_frame, text="Key Request", command=self.request_key)
+        request_button.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        # Кнопка отправки ключа
+        send_key_button = ttk.Button(top_buttons_frame, text="Send Key", command=self.send_key)
+        send_key_button.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+
+        clear_button = ttk.Button(top_buttons_frame, text="Clear Chat", command=self.clear_chat)
+        clear_button.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
+
+        change_friend_button = ttk.Button(top_buttons_frame, text="Change Friend", command=self.change_friend)
+        change_friend_button.grid(row=0, column=3, padx=10, pady=10, sticky="ew")
+
+        change_keys_button = ttk.Button(top_buttons_frame, text="Change Keys", command=self.change_keys)
+        change_keys_button.grid(row=0, column=4, padx=10, pady=10, sticky="ew")
 
         # Назначение события нажатия Enter для отправки сообщения
         self.message_entry.bind("<Return>", lambda event: self.send_message())
+
+        # Настройка параметров размещения
+        self.root.grid_rowconfigure(1, weight=1)
+        self.root.grid_rowconfigure(0, weight=0)  # Устанавливаем вес строки 1 как 0, чтобы предотвратить растяжение поля ввода
+        self.root.grid_rowconfigure(2, weight=0)  # Устанавливаем вес строки 2 как 0, чтобы предотвратить растяжение кнопок
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(1, weight=1)
         
         self.root.after(5000, self.display_messages)
+
+    def change_friend(self):
+        self.action = "change_friend"
+        self.telegram.close()
+        self.root.destroy()
+    
+    def change_keys(self):
+        secret_key, public_key = Crypt.generate_keys()
+        self.crypt.change_keys(secret_key, public_key)
+
+    def clear_chat(self):
+        self.database.delete_messages(self.friend_user_id)
+        self.display_messages(True)
 
     def request_key(self):
         self.telegram.public_key_request(self.friend_entity)
@@ -644,3 +692,6 @@ def start_main(database, friend_name, crypt, telegram):
     friend_user_id = database.get_friend_user_id_by_name(friend_name)
     app = ChatApp(root, crypt, telegram, database, friend_name, friend_user_id)
     root.mainloop()
+    return app.action
+        
+                
