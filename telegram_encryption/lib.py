@@ -270,10 +270,8 @@ class Telegram:
                 elif "Give me your public key please" in value:
                     if self.crypt.db.check_existing_message(key, friend_user_id) == False:
                         self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Asks for public key", key, friend_user_id)
-                        key = self.crypt.db.get_public_key()
                         entity = self.get_entity(int(friend_user_id))
-                        sentmessage = self.client.send_message(entity, key)
-                        self.crypt.db.add_message("Me: Sent public key", sentmessage.id, friend_user_id)
+                        self.send_public_key(entity)
             except:
                 pass
 
@@ -284,7 +282,6 @@ class FriendSelectionWindow:
             self.master = master
             self.window = tk.Toplevel(self.master)
             self.window.title("Добавить друга")
-            self.window.configure(bg="#333")
             self.create_widgets()
             self.friend_id = None
             self.friend_name = None
@@ -294,7 +291,7 @@ class FriendSelectionWindow:
             self.data_label = ttk.Label(self.window, text="Выберите чат из списка:")
             self.info_label.pack(pady=10)
             self.data_label.pack(pady=10)
-            self.data_listbox = tk.Listbox(self.window, selectmode=tk.SINGLE, bg="#444", fg="white")
+            self.data_listbox = tk.Listbox(self.window, selectmode=tk.SINGLE)
             self.data_listbox.pack(pady=10)
             self.submit_button = ttk.Button(self.window, text="Enter", command=self.submit_friend)
             self.submit_button.pack(pady=10)
@@ -344,7 +341,7 @@ class FriendSelectionWindow:
         # Создание списка аккаунтов
         self.enter_friend_label = ttk.Label(self.root, text="Выберите друга")
         self.enter_friend_label.pack(pady=10)
-        self.friends_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE, bg="#444", fg="white")
+        self.friends_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)
         for friend in self.friends:
             self.friends_listbox.insert(tk.END, friend)
 
