@@ -261,11 +261,15 @@ class Telegram:
                             pass
                 elif value[0:21] == "Start of public key: ":
                     if self.crypt.db.get_public_key() != value[21:]:
+                        self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Sent you the public key", key, friend_user_id)
                         self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
                 elif "Give me your public key please" in value:
-                    key = self.crypt.db.get_public_key()
-                    entity = self.get_entity(int(friend_user_id))
-                    self.client.send_message(entity, key)
+                    if self.crypt.db.check_existing_message(key, friend_user_id) == False:
+                        self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Asks for public key", key, friend_user_id)
+                        key = self.crypt.db.get_public_key()
+                        entity = self.get_entity(int(friend_user_id))
+                        sentmessage = self.client.send_message(entity, key)
+                        self.crypt.db.add_message("Me: Sent public key", sentmessage.id, friend_user_id)
             except:
                 pass
 
@@ -575,7 +579,7 @@ class ChatApp:
         # Создание поля для отображения сообщений
         self.message_display = scrolledtext.ScrolledText(self.root, state='disabled', wrap='word', height=15, width=40)#, bg='#333', fg='white', highlightthickness=0, highlightbackground='#333')
         self.message_display.grid(row=1, column=0, padx=10, pady=10, columnspan=2, sticky="nsew")
-
+        
         # Создание поля ввода для сообщения
         self.message_entry = ttk.Entry(self.root, width=30)
         self.message_entry.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
