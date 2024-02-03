@@ -228,10 +228,12 @@ class Telegram:
     
     def send_public_key(self, entity):
         publickey = self.crypt.db.get_public_key()
-        self.client.send_message(entity, f"Start of public key: {publickey}")
+        sentmessage = self.client.send_message(entity, f"Start of public key: {publickey}")
+        self.crypt.db.add_message("Me: Sent public key", sentmessage.id, entity.id)
     
     def public_key_request(self, entity):
-        self.client.send_message(entity, 'Give me your public key please')
+        sentmessage = self.client.send_message(entity, 'Give me your public key please')
+        self.crypt.db.add_message("Me: Asked for public key", sentmessage.id, entity.id)
 
     def get_me(self):
         return self.client.get_me() 
@@ -260,9 +262,11 @@ class Telegram:
                         except:
                             pass
                 elif value[0:21] == "Start of public key: ":
-                    if self.crypt.db.get_public_key() != value[21:]:
-                        self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Sent you the public key", key, friend_user_id)
-                        self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+                    if self.crypt.db.check_existing_message(key, friend_user_id) == False:
+                        if self.crypt.db.get_public_key() != value[21:]:
+                            self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Sent you the public key", key, friend_user_id)
+                            self.crypt.db.add_pubkey_to_friend(value[21:], user_id=friend_user_id)
+
                 elif "Give me your public key please" in value:
                     if self.crypt.db.check_existing_message(key, friend_user_id) == False:
                         self.crypt.db.add_message(f"{self.crypt.db.get_friend_name_by_id(friend_user_id)}: Asks for public key", key, friend_user_id)
@@ -617,7 +621,7 @@ class ChatApp:
         self.root.grid_rowconfigure(2, weight=0)  # Устанавливаем вес строки 2 как 0, чтобы предотвратить растяжение кнопок
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_columnconfigure(1, weight=1)
-        
+        self.display_messages()
         self.root.after(5000, self.display_messages)
 
     def change_friend(self):
@@ -635,9 +639,11 @@ class ChatApp:
 
     def request_key(self):
         self.telegram.public_key_request(self.friend_entity)
+        self.display_messages(True)
 
     def send_key(self):
         self.telegram.send_public_key(self.friend_entity)
+        self.display_messages(True)
 
     def send_message(self):
         # Получение текста из поля ввода
