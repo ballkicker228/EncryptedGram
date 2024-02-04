@@ -1,3 +1,5 @@
 *.db
 *.session
 *.session-journal
+
+telegram_encryption/__pycache__/

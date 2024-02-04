@@ -517,7 +517,8 @@ class AccountSelectionWindow:
         # Создание списка аккаунтов
         self.account_listbox = tk.Listbox(self.root, selectmode=tk.SINGLE)
         for account in self.accounts:
-            self.account_listbox.insert(tk.END, account)
+            if os.path.exists(f"telegram-{account}.db") and os.path.exists(f"{account}.session"):
+                self.account_listbox.insert(tk.END, account)
 
         self.account_listbox.pack(padx=10, pady=10)
 
