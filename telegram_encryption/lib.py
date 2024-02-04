@@ -37,10 +37,10 @@ class MasterDatabase:
         self.cur.execute(f"DELETE FROM Accounts WHERE NAME='{name}'")
         self.con.commit()
         try:
-            print(f"./telegram-{name}.db")
             os.remove(f"./telegram-{name}.db")
+            os.remove(f"{name}.session")
         except Exception as e:
-            print(e)
+            pass
         
     def close(self):
         self.con.close()
@@ -519,6 +519,8 @@ class AccountSelectionWindow:
         for account in self.accounts:
             if os.path.exists(f"telegram-{account}.db") and os.path.exists(f"{account}.session"):
                 self.account_listbox.insert(tk.END, account)
+            else:
+                self.master.del_account(account)
 
         self.account_listbox.pack(padx=10, pady=10)
 
@@ -633,7 +635,8 @@ class ChatApp:
 
     def clear_chat(self):
         self.database.delete_messages(self.friend_user_id)
-        self.display_messages(True)
+        self.change_keys()
+        self.send_key()
 
     def request_key(self):
         self.telegram.public_key_request(self.friend_entity)
