@@ -5,7 +5,8 @@ from telethon.errors import SessionPasswordNeededError
 from telethon.tl import types
 import tkinter as tk
 from tkinter import ttk, scrolledtext
-from ecies.utils import generate_eth_key, generate_key
+from tkinter.messagebox import showerror
+from ecies.utils import generate_eth_key
 from ecies import encrypt, decrypt
 
 class MasterDatabase:
@@ -21,7 +22,7 @@ class MasterDatabase:
     def check_name_exists(self, name):
         self.cur.execute(f"SELECT NAME FROM Accounts WHERE NAME='{name}'")
         check = self.cur.fetchone()[0]
-        return check[0] == name
+        return check == name
 
     def fetch_all_accounts(self):
         self.cur.execute("""SELECT NAME FROM Accounts""")
@@ -407,13 +408,6 @@ class AccountSelectionWindow:
             self.masterdb = MasterDatabase()
             self.create_widgets()
 
-        def clear_window(self):
-            # Destroy all widgets in the window
-            for widget in self.window.winfo_children():
-                widget.destroy()
-            # Update the window to reflect the changes
-            self.window.update()
-
         def create_widgets(self):
             self.name_label = ttk.Label(self.window, text="Придумайте имя аккаунту:")
             self.name_label.pack(pady=10)
@@ -445,12 +439,35 @@ class AccountSelectionWindow:
             self.api_id = self.api_id_entry.get()
             self.api_hash = self.api_hash_entry.get()
             self.name = self.name_entry.get()
-            self.account_name = self.name
-            self.client = TelegramClient(self.name, self.api_id, self.api_hash)
-            self.client.connect()
-            try:
-                phone_code = self.client.send_code_request(self.phone_number)
-                self.phone_code_hash = phone_code.phone_code_hash
+            if not self.masterdb.check_name_exists(self.name):
+                self.account_name = self.name
+                self.client = TelegramClient(self.name, self.api_id, self.api_hash)
+                self.client.connect()
+                try:
+                    phone_code = self.client.send_code_request(self.phone_number)
+                    self.phone_code_hash = phone_code.phone_code_hash
+                    self.phone_label.destroy()
+                    self.phone_entry.destroy()
+                    self.api_id_label.destroy()
+                    self.api_id_entry.destroy()
+                    self.api_hash_label.destroy()
+                    self.api_hash_entry.destroy()
+                    self.name_label.destroy()
+                    self.name_entry.destroy()
+                    self.submit_button.destroy()
+                    self.code_label = ttk.Label(self.window, text="Введите код подтверждения:")
+                    self.code_label.pack(pady=10)
+                    self.code_entry = ttk.Entry(self.window)
+                    self.code_entry.pack(pady=10)
+                    self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_code)
+                    self.submit_button.pack(pady=10)
+                    self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)
+                    self.close_button.pack(pady=10)
+                except Exception as e:
+                    print(f"Error: {e}")
+                    quit()
+            else:
+                showerror("Ошибка", "Аккаунт существует")
                 self.phone_label.destroy()
                 self.phone_entry.destroy()
                 self.api_id_label.destroy()
@@ -460,16 +477,8 @@ class AccountSelectionWindow:
                 self.name_label.destroy()
                 self.name_entry.destroy()
                 self.submit_button.destroy()
-                self.code_label = ttk.Label(self.window, text="Введите код подтверждения:")
-                self.code_label.pack(pady=10)
-                self.code_entry = ttk.Entry(self.window)
-                self.code_entry.pack(pady=10)
-                self.submit_button = ttk.Button(self.window, text="Enter", command=self.enter_code)
-                self.submit_button.pack(pady=10)
-                self.close_button = ttk.Button(self.window, text="Выйти", command=self.close)
-                self.close_button.pack(pady=10)
-            except Exception as e:
-                pass
+                self.close_button.destroy()
+                self.create_widgets()
             
         def enter_code(self):
             try:
