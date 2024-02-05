@@ -180,9 +180,13 @@ class Crypt:
         self.db = db
         self.friend_pubkey = None
     
-    def encrypt_message(self, message): #TODO pubkey exception
-        byte_message = message.encode('utf-8')
-        return encrypt(self.friend_pubkey, byte_message).hex()
+    def encrypt_message(self, message):
+        try:
+            byte_message = message.encode('utf-8')
+            return encrypt(self.friend_pubkey, byte_message).hex()
+        except:
+            print("Ошибка с публичным ключем!")
+            quit()
     
     def change_keys(self, secret_key, public_key):
         self.prkey = secret_key
@@ -570,7 +574,7 @@ class AccountSelectionWindow:
             self.accountdb = Account(self.selected_account)
             self.root.destroy()
 
-class ChatApp:
+class ChatApp: # Класс с основным окном чата
     def __init__(self, root, crypt, telegram, accountdb, friend_name, friend_user_id):
         self.root = root
         self.root.title("EncryptedGram")
@@ -660,9 +664,7 @@ class ChatApp:
         message_text = self.message_entry.get()
 
         if message_text:
-            self.telegram.send_message(self.friend_entity, message_text)
-            # Добавление нового сообщения в массив
-            self.messages.append(f"Me: {message_text}")
+            message = self.telegram.send_message(self.friend_entity, message_text)
 
             # Обновление отображения сообщений
             self.display_messages(issent=True)
